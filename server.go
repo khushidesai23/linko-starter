@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	"boot.dev/linko/internal/store"
 )
@@ -47,6 +48,21 @@ func (s *server) start() error {
 	if err != nil {
 		return err
 	}
+	// Get port from the listener address (assert to *net.TCPAddr)
+	port := 0
+	if tcpAddr, ok := ln.Addr().(*net.TCPAddr); ok {
+		port = tcpAddr.Port
+	} else {
+		// Fallback: try parsing from the configured Addr (e.g. ":8080")
+		_, p, perr := net.SplitHostPort(s.httpServer.Addr)
+		if perr == nil {
+			if pi, err := strconv.Atoi(p); err == nil {
+				port = pi
+			}
+		}
+	}
+	fmt.Printf("Linko is running on http://localhost:%d\n", port)
+
 	if err := s.httpServer.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -54,6 +70,7 @@ func (s *server) start() error {
 }
 
 func (s *server) shutdown(ctx context.Context) error {
+	fmt.Println("Linko is shutting down")
 	return s.httpServer.Shutdown(ctx)
 }
 
