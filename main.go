@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"io"
@@ -61,7 +62,8 @@ func initializeLogger() *log.Logger {
 			// fallback to stderr
 			return log.New(os.Stderr, "", log.LstdFlags)
 		}
-		mw := io.MultiWriter(f, os.Stderr)
+		buf := bufio.NewWriterSize(f, 8192)
+		mw := io.MultiWriter(buf, os.Stderr)
 		return log.New(mw, "", log.LstdFlags)
 	}
 	return log.New(os.Stderr, "", log.LstdFlags)
