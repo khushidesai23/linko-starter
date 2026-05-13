@@ -32,6 +32,9 @@ func newServer(store store.Store, port int, cancel context.CancelFunc) *server {
 		cancel:     cancel,
 	}
 
+	// Wrap the mux with the requestLogger middleware so all served requests are logged.
+	s.httpServer.Handler = s.requestLogger(mux)
+
 	mux.HandleFunc("GET /", s.handlerIndex)
 	mux.Handle("POST /api/login", s.authMiddleware(http.HandlerFunc(s.handlerLogin)))
 	mux.Handle("POST /api/shorten", s.authMiddleware(http.HandlerFunc(s.handlerShortenLink)))
@@ -81,4 +84,11 @@ func (s *server) handlerShutdown(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	go s.cancel()
+}
+
+func (s *server) requestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+		logger.Printf("Served request: %s %s", r.Method, r.URL.Path)
+	})
 }
