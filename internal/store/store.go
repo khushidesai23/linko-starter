@@ -28,7 +28,7 @@ const (
 )
 
 type Store struct {
-	dir string
+	dir    string
 	logger *log.Logger
 }
 
