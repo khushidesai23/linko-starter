@@ -33,8 +33,8 @@ func (s *server) authMiddleware(next http.Handler) http.Handler {
 		}
 		ok, err := s.validatePassword(password, stored)
 		if err != nil {
-			if s.stdLogger != nil {
-				s.stdLogger.Printf("error validating password for user: %s, error: %v", username, err)
+			if s.logger != nil {
+				s.logger.Printf("error validating password for user: %s, error: %v", username, err)
 			}
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
@@ -54,8 +54,8 @@ func (s *server) validatePassword(password, stored string) (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		if s.stdLogger != nil {
-			s.stdLogger.Printf("error validating password: %v", err)
+		if s.logger != nil {
+			s.logger.Printf("error validating password: %v", err)
 		}
 		return false, err
 	}
