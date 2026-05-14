@@ -97,15 +97,29 @@ func (s *server) requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		if s.logger != nil {
-			clientIP := r.RemoteAddr
-			if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-				clientIP = host
-			}
 			s.logger.Info("Served request",
 				"method", r.Method,
 				"path", r.URL.Path,
-				"client_ip", clientIP,
+				"client_ip", r.RemoteAddr,
 			)
 		}
 	})
+}
+
+// requestLogger returns a middleware that logs served requests using the provided logger.
+// This standalone helper is used by tests and may be used as an alternative to the
+// server method above.
+func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+			if logger != nil {
+				logger.Info("Served request",
+					"method", r.Method,
+					"path", r.URL.Path,
+					"client_ip", r.RemoteAddr,
+				)
+			}
+		})
+	}
 }
