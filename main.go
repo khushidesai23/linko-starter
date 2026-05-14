@@ -84,7 +84,7 @@ func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
 	}
 	buf := bufio.NewWriterSize(f, 8192)
 	fileMw := io.MultiWriter(buf)
-	fileH := slog.NewTextHandler(fileMw, &slog.HandlerOptions{Level: slog.LevelInfo})
+	fileH := slog.NewJSONHandler(fileMw, &slog.HandlerOptions{Level: slog.LevelInfo})
 	stderrH := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
 	multi := slog.NewMultiHandler(fileH, stderrH)
 	l := slog.New(multi)
