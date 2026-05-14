@@ -46,7 +46,7 @@ func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.logger != nil {
-		s.logger.Info(fmt.Sprintf("Shortening URL: %s", longURL))
+		s.logger.Info("Shortening URL", "url", longURL)
 	}
 	u, err := url.Parse(longURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
@@ -54,7 +54,7 @@ func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.logger != nil {
-		s.logger.Info(fmt.Sprintf("Parsed URL: scheme=%s, host=%s", u.Scheme, u.Host))
+		s.logger.Info("Parsed URL", "scheme", u.Scheme, "host", u.Host)
 	}
 	if err := checkDestination(longURL); err != nil {
 		http.Error(w, fmt.Sprintf("invalid target URL: %v", err), http.StatusBadRequest)
@@ -66,7 +66,7 @@ func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.logger != nil {
-		s.logger.Info(fmt.Sprintf("Generated short code: %s for URL: %s", shortCode, longURL))
+		s.logger.Info("Generated short code", "short_code", shortCode, "url", longURL)
 	}
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)

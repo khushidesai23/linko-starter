@@ -68,7 +68,7 @@ func (s *server) start() error {
 		}
 	}
 	if s.logger != nil {
-		s.logger.Debug(fmt.Sprintf("Linko is running on http://localhost:%d", port))
+		s.logger.Debug("Linko is running", "port", port)
 	}
 
 	if err := s.httpServer.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
@@ -97,7 +97,15 @@ func (s *server) requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		if s.logger != nil {
-			s.logger.Info(fmt.Sprintf("Served request: %s %s", r.Method, r.URL.Path))
+			clientIP := r.RemoteAddr
+			if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+				clientIP = host
+			}
+			s.logger.Info("Served request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"client_ip", clientIP,
+			)
 		}
 	})
 }
