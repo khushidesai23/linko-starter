@@ -42,7 +42,7 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 
 	st, err := store.New(dataDir, logger)
 	if err != nil {
-		logger.Info(fmt.Sprintf("failed to create store: %v", err))
+		logger.Error("failed to create store", "error", err)
 		return 1
 	}
 	s := newServer(*st, httpPort, cancel, logger)
@@ -56,11 +56,11 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	defer cancel()
 
 	if err := s.shutdown(shutdownCtx); err != nil {
-		logger.Info(fmt.Sprintf("failed to shutdown server: %v", err))
+		logger.Error("failed to shutdown server", "error", err)
 		return 1
 	}
 	if serverErr != nil {
-		logger.Info(fmt.Sprintf("server error: %v", serverErr))
+		logger.Error("server error", "error", serverErr)
 		return 1
 	}
 	return 0
@@ -74,8 +74,8 @@ type closeFunc func() error
 
 func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
 	if path == "" {
-		h := slog.NewTextHandler(os.Stderr, nil)
-		return slog.New(h), func() error { return nil }, nil
+		stderrH := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+		return slog.New(stderrH), func() error { return nil }, nil
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
@@ -83,9 +83,11 @@ func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
 		return nil, nil, err
 	}
 	buf := bufio.NewWriterSize(f, 8192)
-	mw := io.MultiWriter(buf, os.Stderr)
-	h := slog.NewTextHandler(mw, nil)
-	l := slog.New(h)
+	fileMw := io.MultiWriter(buf)
+	fileH := slog.NewTextHandler(fileMw, &slog.HandlerOptions{Level: slog.LevelInfo})
+	stderrH := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+	multi := slog.NewMultiHandler(fileH, stderrH)
+	l := slog.New(multi)
 	closeFn := func() error {
 		if err := buf.Flush(); err != nil {
 			_ = f.Close()
