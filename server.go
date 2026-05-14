@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -17,11 +17,10 @@ type server struct {
 	httpServer *http.Server
 	store      store.Store
 	cancel     context.CancelFunc
-	logger     *log.Logger
-	stdLogger  *log.Logger
+	logger     *slog.Logger
 }
 
-func newServer(store store.Store, port int, cancel context.CancelFunc, accessLogger *log.Logger, standardLogger *log.Logger) *server {
+func newServer(store store.Store, port int, cancel context.CancelFunc, logger *slog.Logger) *server {
 	mux := http.NewServeMux()
 
 	srv := &http.Server{
@@ -33,8 +32,7 @@ func newServer(store store.Store, port int, cancel context.CancelFunc, accessLog
 		httpServer: srv,
 		store:      store,
 		cancel:     cancel,
-		logger:     accessLogger,
-		stdLogger:  standardLogger,
+		logger:     logger,
 	}
 
 	// Wrap the mux with the requestLogger middleware so all served requests are logged.
@@ -70,7 +68,7 @@ func (s *server) start() error {
 		}
 	}
 	if s.logger != nil {
-		s.logger.Printf("Linko is running on http://localhost:%d", port)
+		s.logger.Debug("Linko is running", "port", port)
 	}
 
 	if err := s.httpServer.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
@@ -80,8 +78,8 @@ func (s *server) start() error {
 }
 
 func (s *server) shutdown(ctx context.Context) error {
-	if s.stdLogger != nil {
-		s.stdLogger.Println("Linko is shutting down")
+	if s.logger != nil {
+		s.logger.Debug("Linko is shutting down")
 	}
 	return s.httpServer.Shutdown(ctx)
 }
@@ -99,7 +97,15 @@ func (s *server) requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		if s.logger != nil {
-			s.logger.Printf("Served request: %s %s", r.Method, r.URL.Path)
+			clientIP := r.RemoteAddr
+			if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+				clientIP = host
+			}
+			s.logger.Info("Served request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"client_ip", clientIP,
+			)
 		}
 	})
 }
