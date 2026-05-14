@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -42,7 +42,7 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 
 	st, err := store.New(dataDir, logger)
 	if err != nil {
-		logger.Printf("failed to create store: %v", err)
+		logger.Info(fmt.Sprintf("failed to create store: %v", err))
 		return 1
 	}
 	s := newServer(*st, httpPort, cancel, logger)
@@ -56,26 +56,26 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	defer cancel()
 
 	if err := s.shutdown(shutdownCtx); err != nil {
-		logger.Printf("failed to shutdown server: %v", err)
+		logger.Info(fmt.Sprintf("failed to shutdown server: %v", err))
 		return 1
 	}
 	if serverErr != nil {
-		logger.Printf("server error: %v", serverErr)
+		logger.Info(fmt.Sprintf("server error: %v", serverErr))
 		return 1
 	}
 	return 0
 }
-
-func initializeLogger() (*log.Logger, closeFunc, error) {
+func initializeLogger() (*slog.Logger, closeFunc, error) {
 	// initializeLogger returns a logger, a close function to cleanup resources, and an error
 	return initializeLoggerWithPath(os.Getenv("LINKO_LOG_FILE"))
 }
 
 type closeFunc func() error
 
-func initializeLoggerWithPath(path string) (*log.Logger, closeFunc, error) {
+func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
 	if path == "" {
-		return log.New(os.Stderr, "", log.LstdFlags), func() error { return nil }, nil
+		h := slog.NewTextHandler(os.Stderr, nil)
+		return slog.New(h), func() error { return nil }, nil
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
@@ -84,7 +84,8 @@ func initializeLoggerWithPath(path string) (*log.Logger, closeFunc, error) {
 	}
 	buf := bufio.NewWriterSize(f, 8192)
 	mw := io.MultiWriter(buf, os.Stderr)
-	l := log.New(mw, "", log.LstdFlags)
+	h := slog.NewTextHandler(mw, nil)
+	l := slog.New(h)
 	closeFn := func() error {
 		if err := buf.Flush(); err != nil {
 			_ = f.Close()

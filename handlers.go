@@ -46,7 +46,7 @@ func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.logger != nil {
-		s.logger.Println("Shortening URL:", longURL)
+		s.logger.Info(fmt.Sprintf("Shortening URL: %s", longURL))
 	}
 	u, err := url.Parse(longURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
@@ -54,7 +54,7 @@ func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.logger != nil {
-		s.logger.Printf("Parsed URL: scheme=%s, host=%s", u.Scheme, u.Host)
+		s.logger.Info(fmt.Sprintf("Parsed URL: scheme=%s, host=%s", u.Scheme, u.Host))
 	}
 	if err := checkDestination(longURL); err != nil {
 		http.Error(w, fmt.Sprintf("invalid target URL: %v", err), http.StatusBadRequest)
@@ -66,7 +66,7 @@ func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.logger != nil {
-		s.logger.Printf("Generated short code: %s for URL: %s", shortCode, longURL)
+		s.logger.Info(fmt.Sprintf("Generated short code: %s for URL: %s", shortCode, longURL))
 	}
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
@@ -80,7 +80,7 @@ func (s *server) handlerRedirect(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "not found", http.StatusNotFound)
 		} else {
 			if s.logger != nil {
-				s.logger.Printf("failed to lookup URL: %v", err)
+				s.logger.Info(fmt.Sprintf("failed to lookup URL: %v", err))
 			}
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
@@ -103,7 +103,7 @@ func (s *server) handlerListURLs(w http.ResponseWriter, r *http.Request) {
 	codes, err := s.store.List(r.Context())
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Printf("failed to list URLs: %v", err)
+			s.logger.Info(fmt.Sprintf("failed to list URLs: %v", err))
 		}
 		http.Error(w, "failed to list URLs", http.StatusInternalServerError)
 		return
