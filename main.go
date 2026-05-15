@@ -74,7 +74,15 @@ type closeFunc func() error
 
 func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
 	if path == "" {
-		stderrH := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+		stderrH := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == slog.TimeKey {
+					return slog.Time(slog.TimeKey, a.Value.Time().UTC())
+				}
+				return a
+			},
+		})
 		return slog.New(stderrH), func() error { return nil }, nil
 	}
 
@@ -84,8 +92,24 @@ func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
 	}
 	buf := bufio.NewWriterSize(f, 8192)
 	fileMw := io.MultiWriter(buf)
-	fileH := slog.NewJSONHandler(fileMw, &slog.HandlerOptions{Level: slog.LevelInfo})
-	stderrH := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+	fileH := slog.NewJSONHandler(fileMw, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.Time(slog.TimeKey, a.Value.Time().UTC())
+			}
+			return a
+		},
+	})
+	stderrH := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.Time(slog.TimeKey, a.Value.Time().UTC())
+			}
+			return a
+		},
+	})
 	multi := slog.NewMultiHandler(fileH, stderrH)
 	l := slog.New(multi)
 	closeFn := func() error {
