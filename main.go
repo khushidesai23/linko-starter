@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +12,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	pkgerr "github.com/pkg/errors"
 
 	"boot.dev/linko/internal/store"
 )
@@ -73,12 +76,32 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 type closeFunc func() error
 
 func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
+	type stackTracer interface {
+		error
+		StackTrace() pkgerr.StackTrace
+	}
+
 	if path == "" {
 		stderrH := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 				if a.Key == slog.TimeKey {
 					return slog.Time(slog.TimeKey, a.Value.Time().UTC())
+				}
+				if a.Key == "error" {
+					if ev := a.Value.Any(); ev != nil {
+						if errVal, ok := ev.(error); ok {
+							if stackErr, ok := errors.AsType[stackTracer](errVal); ok {
+								return slog.GroupAttrs("error",
+									slog.String("message", stackErr.Error()),
+									slog.String("stack_trace", fmt.Sprintf("%+v", stackErr.StackTrace())),
+								)
+							}
+							return slog.GroupAttrs("error",
+								slog.String("message", errVal.Error()),
+							)
+						}
+					}
 				}
 				return a
 			},
@@ -98,6 +121,21 @@ func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
 			if a.Key == slog.TimeKey {
 				return slog.Time(slog.TimeKey, a.Value.Time().UTC())
 			}
+			if a.Key == "error" {
+				if ev := a.Value.Any(); ev != nil {
+					if errVal, ok := ev.(error); ok {
+						if stackErr, ok := errors.AsType[stackTracer](errVal); ok {
+							return slog.GroupAttrs("error",
+								slog.String("message", stackErr.Error()),
+								slog.String("stack_trace", fmt.Sprintf("%+v", stackErr.StackTrace())),
+							)
+						}
+						return slog.GroupAttrs("error",
+							slog.String("message", errVal.Error()),
+						)
+					}
+				}
+			}
 			return a
 		},
 	})
@@ -106,6 +144,21 @@ func initializeLoggerWithPath(path string) (*slog.Logger, closeFunc, error) {
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey {
 				return slog.Time(slog.TimeKey, a.Value.Time().UTC())
+			}
+			if a.Key == "error" {
+				if ev := a.Value.Any(); ev != nil {
+					if errVal, ok := ev.(error); ok {
+						if stackErr, ok := errors.AsType[stackTracer](errVal); ok {
+							return slog.GroupAttrs("error",
+								slog.String("message", stackErr.Error()),
+								slog.String("stack_trace", fmt.Sprintf("%+v", stackErr.StackTrace())),
+							)
+						}
+						return slog.GroupAttrs("error",
+							slog.String("message", errVal.Error()),
+						)
+					}
+				}
 			}
 			return a
 		},
